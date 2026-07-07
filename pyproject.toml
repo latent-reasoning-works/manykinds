@@ -7,7 +7,7 @@ requires-python = ">=3.11"
 license = { text = "MIT" }
 authors = [
     { name = "César Miguel Valdez Córdova", email = "cesar.valdez@mila.quebec" },
-    { name = "Zack Warren", email = "zackmanalowarren@gmail.com" },
+    { name = "Zack Warren" },
 ]
 keywords = ["typed-data", "protocol", "xarray", "single-cell", "kinds"]
 dependencies = [
