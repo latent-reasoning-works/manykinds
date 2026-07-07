@@ -1,0 +1,34 @@
+[project]
+name = "manykinds"
+version = "0.1.0"
+description = "Typed data-kind vocabulary — a structural Kind protocol plus xarray/numpy kinds — shared across the latent-reasoning stack."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [
+    { name = "César Miguel Valdez Córdova", email = "cesar.valdez@mila.quebec" },
+]
+keywords = ["typed-data", "protocol", "xarray", "single-cell", "kinds"]
+dependencies = [
+    "numpy>=1.23",
+    "xarray>=2024.0",
+    "zarr>=2.18",
+    "sparse>=0.15",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0", "scipy>=1.10"]
+
+[project.urls]
+Homepage = "https://github.com/latent-reasoning-works/manykinds"
+Repository = "https://github.com/latent-reasoning-works/manykinds"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["manykinds"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
