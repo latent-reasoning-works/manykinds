@@ -10,10 +10,24 @@ from __future__ import annotations
 from manykinds.base import Kind
 from manykinds.spec import KindSpec
 
-__all__ = ["Kind", "KindSpec", "LabeledArray", "SparseGraph"]
+__all__ = [
+    "Kind",
+    "KindSpec",
+    "LabeledArray",
+    "SparseGraph",
+    "FileArtifact",
+    "Table",
+    "Sequence",
+]
 
 # name -> submodule that defines it (imported on first attribute access)
-_LAZY = {"LabeledArray": "labeled_array", "SparseGraph": "sparse_graph"}
+_LAZY = {
+    "LabeledArray": "labeled_array",
+    "SparseGraph": "sparse_graph",
+    "FileArtifact": "file_artifact",
+    "Table": "table",
+    "Sequence": "sequence",
+}
 
 
 def __getattr__(name: str):

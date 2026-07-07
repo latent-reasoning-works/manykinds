@@ -1,6 +1,6 @@
 [project]
 name = "manykinds"
-version = "0.2.0"
+version = "0.1.1"
 description = "Typed data-kind vocabulary — a structural Kind protocol plus xarray/numpy kinds — shared across the latent-reasoning stack."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -18,7 +18,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=7.0", "scipy>=1.10"]
+# Table persistence (parquet) needs a pandas parquet engine.
+table = ["pyarrow>=14"]
+dev = ["pytest>=7.0", "scipy>=1.10", "pyarrow>=14"]
 
 [project.urls]
 Homepage = "https://github.com/latent-reasoning-works/manykinds"

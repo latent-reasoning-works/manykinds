@@ -21,8 +21,15 @@ inventing (or embedding) its own data contract.
 - **`LabeledArray`** — an `xarray.DataArray` with named dims + dim-aligned coords.
   The canonical kind for cell×gene matrices and embeddings. Dense and
   `sparse.COO`-backed arrays both serialize to zarr (validating on read).
-- **`SparseGraph`** — a graph as two numpy arrays (an E×2 integer edge list +
-  node ids). `.npz` persistence.
+- **`SparseGraph`** — a graph as numpy arrays (an E×2 integer edge list + node
+  ids, plus optional `edge_weights` for weighted/signed graphs like GRNs). `.npz`.
+- **`FileArtifact`** — an opaque reference to a file a tool produced (path +
+  format + checksum). The escape hatch for outputs the vocabulary doesn't model
+  structurally: carry the file through a pipeline unchanged.
+- **`Table`** — heterogeneous columnar data (a pandas DataFrame) for mixed-dtype
+  tables like AnnData `obs`/`var`. Parquet persistence (`manykinds[table]` extra).
+- **`Sequence`** — biological sequences over an alphabet (DNA/protein), with
+  optional ids. `.npz`.
 - **`KindSpec`** — a data-free structural signature (kind name + dims + coords).
   `spec_a.satisfies(spec_b)` is the plan-time mirror of `Kind.require`, so an
   orchestrator can type an op's inputs/outputs and check a chain is valid *before*

@@ -1,12 +1,12 @@
-"""SparseGraph: a graph as two plain numpy arrays (edge list + node ids).
+"""SparseGraph: a graph as plain numpy arrays (edge list + node ids + weights).
 
 A dependency-free graph kind — no heavy graph library, just numpy. Structurally
-satisfies :class:`manykinds.base.Kind`. Only needs numpy (in the
-``manykinds`` extra), not xarray/zarr.
+satisfies :class:`manykinds.base.Kind`. Only needs numpy.
 """
 
 import logging
 from dataclasses import dataclass
+from typing import Optional
 
 import numpy as np
 
@@ -17,21 +17,31 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True, eq=False)
 class SparseGraph:
-    """An E×2 integer edge list + a 1-D array of node ids."""
+    """An E×2 integer edge list + a 1-D array of node ids, optionally weighted.
 
-    # named structural components this kind carries; ``require`` checks against these.
-    _COMPONENTS = ("edges", "node_ids")
+    ``edge_weights`` (when present) is a 1-D array aligned to ``edges`` — for
+    weighted/signed graphs like gene-regulatory networks.
+    """
 
     edges: np.ndarray
     node_ids: np.ndarray
     provenance: tuple[str, ...] = ()
+    edge_weights: Optional[np.ndarray] = None
 
     def __post_init__(self):
         # frozen: bypass the immutability guard to normalize inputs in place.
         object.__setattr__(self, "edges", np.asarray(self.edges))
         object.__setattr__(self, "node_ids", np.asarray(self.node_ids))
+        if self.edge_weights is not None:
+            object.__setattr__(self, "edge_weights", np.asarray(self.edge_weights))
         object.__setattr__(self, "provenance", tuple(self.provenance))
         self.validate()
+
+    @property
+    def _components(self) -> tuple[str, ...]:
+        """Named structural components this graph carries (weights only if present)."""
+        base = ("edges", "node_ids")
+        return base + (("edge_weights",) if self.edge_weights is not None else ())
 
     def validate(self) -> "SparseGraph":
         if self.edges.ndim != 2 or self.edges.shape[1] != 2:
@@ -40,14 +50,24 @@ class SparseGraph:
             raise ValueError(f"node_ids must be 1-D, got shape {self.node_ids.shape}")
         if not np.issubdtype(self.edges.dtype, np.integer):
             raise ValueError(f"edges must be integer dtype, got {self.edges.dtype}")
+        if self.edge_weights is not None:
+            if self.edge_weights.ndim != 1:
+                raise ValueError(
+                    f"edge_weights must be 1-D, got shape {self.edge_weights.shape}"
+                )
+            if self.edge_weights.shape[0] != self.edges.shape[0]:
+                raise ValueError(
+                    f"edge_weights length {self.edge_weights.shape[0]} != "
+                    f"{self.edges.shape[0]} edges — one weight per edge"
+                )
         return self
 
     def require(self, *dims: str, coords: tuple[str, ...] = ()) -> "SparseGraph":
-        missing_dims = [d for d in dims if d not in self._COMPONENTS]
+        missing_dims = [d for d in dims if d not in self._components]
         if missing_dims:
-            raise ValueError(f"requires dims {missing_dims}; got {self._COMPONENTS}")
+            raise ValueError(f"requires dims {missing_dims}; got {self._components}")
 
-        # A SparseGraph is a bare edge list + node ids; it carries no coords.
+        # A SparseGraph carries no coords.
         if coords:
             raise ValueError(f"requires coords {list(coords)}; got ()")
         return self
@@ -58,11 +78,13 @@ class SparseGraph:
         Part of the ``Kind`` protocol: the op registry appends to this trail as it
         runs each op. Immutable: the original is untouched.
         """
-        return SparseGraph(self.edges, self.node_ids, self.provenance + (op_name,))
+        return SparseGraph(
+            self.edges, self.node_ids, self.provenance + (op_name,), self.edge_weights
+        )
 
     def spec(self) -> KindSpec:
         """This graph's structural signature (its named components, no coords)."""
-        return KindSpec("SparseGraph", tuple(self._COMPONENTS), ())
+        return KindSpec("SparseGraph", self._components, ())
 
     @staticmethod
     def _normalize(path: str) -> str:
@@ -74,24 +96,31 @@ class SparseGraph:
         logger.info(f"Serializing {type(self).__name__} to {path}")
         # provenance rides alongside as a string array so the op trail survives
         # the round-trip; stored explicitly since .npz keys are arrays, not attrs.
-        np.savez_compressed(
-            self._normalize(path),
+        arrays = dict(
             edges=self.edges,
             node_ids=self.node_ids,
             provenance=np.asarray(self.provenance, dtype=object),
         )
+        if self.edge_weights is not None:
+            arrays["edge_weights"] = self.edge_weights
+        np.savez_compressed(self._normalize(path), **arrays)
 
     @classmethod
     def load(cls, path):
         with np.load(cls._normalize(path), allow_pickle=True) as d:
-            # older archives predate provenance; default to an empty trail.
+            # older archives predate provenance/weights; default cleanly.
             provenance = tuple(d["provenance"]) if "provenance" in d else ()
+            edge_weights = d["edge_weights"] if "edge_weights" in d else None
             # validate called from __post_init__
-            return cls(d["edges"], d["node_ids"], provenance)
+            return cls(d["edges"], d["node_ids"], provenance, edge_weights)
 
     @property
     def data(self) -> tuple[np.ndarray, np.ndarray]:
         return self.edges, self.node_ids
 
     def __repr__(self) -> str:
-        return f"SparseGraph(num_nodes={self.node_ids.shape[0]}, num_edges={self.edges.shape[0]})"
+        w = "" if self.edge_weights is None else ", weighted"
+        return (
+            f"SparseGraph(num_nodes={self.node_ids.shape[0]}, "
+            f"num_edges={self.edges.shape[0]}{w})"
+        )
