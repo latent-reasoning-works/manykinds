@@ -13,6 +13,8 @@ from dataclasses import dataclass
 import numpy as np
 import xarray as xr
 
+from manykinds.spec import KindSpec
+
 logger = logging.getLogger(__name__)
 
 
@@ -74,6 +76,10 @@ class LabeledArray:
         runs each op. Immutable: the original is untouched.
         """
         return LabeledArray(self.da, self.provenance + (op_name,))
+
+    def spec(self) -> KindSpec:
+        """This array's structural signature (name + dims + coords), data-free."""
+        return KindSpec("LabeledArray", tuple(self.da.dims), tuple(self.da.coords))
 
     @staticmethod
     def _normalize(path: str) -> str:

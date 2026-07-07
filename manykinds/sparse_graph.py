@@ -10,6 +10,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from manykinds.spec import KindSpec
+
 logger = logging.getLogger(__name__)
 
 
@@ -57,6 +59,10 @@ class SparseGraph:
         runs each op. Immutable: the original is untouched.
         """
         return SparseGraph(self.edges, self.node_ids, self.provenance + (op_name,))
+
+    def spec(self) -> KindSpec:
+        """This graph's structural signature (its named components, no coords)."""
+        return KindSpec("SparseGraph", tuple(self._COMPONENTS), ())
 
     @staticmethod
     def _normalize(path: str) -> str:

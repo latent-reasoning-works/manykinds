@@ -1,6 +1,6 @@
 [project]
 name = "manykinds"
-version = "0.1.0"
+version = "0.2.0"
 description = "Typed data-kind vocabulary — a structural Kind protocol plus xarray/numpy kinds — shared across the latent-reasoning stack."
 readme = "README.md"
 requires-python = ">=3.11"

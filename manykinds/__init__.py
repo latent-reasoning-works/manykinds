@@ -8,8 +8,9 @@ protocol. See :mod:`manykinds.base` for the contract.
 from __future__ import annotations
 
 from manykinds.base import Kind
+from manykinds.spec import KindSpec
 
-__all__ = ["Kind", "LabeledArray", "SparseGraph"]
+__all__ = ["Kind", "KindSpec", "LabeledArray", "SparseGraph"]
 
 # name -> submodule that defines it (imported on first attribute access)
 _LAZY = {"LabeledArray": "labeled_array", "SparseGraph": "sparse_graph"}

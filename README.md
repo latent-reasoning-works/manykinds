@@ -23,6 +23,10 @@ inventing (or embedding) its own data contract.
   `sparse.COO`-backed arrays both serialize to zarr (validating on read).
 - **`SparseGraph`** — a graph as two numpy arrays (an E×2 integer edge list +
   node ids). `.npz` persistence.
+- **`KindSpec`** — a data-free structural signature (kind name + dims + coords).
+  `spec_a.satisfies(spec_b)` is the plan-time mirror of `Kind.require`, so an
+  orchestrator can type an op's inputs/outputs and check a chain is valid *before*
+  running it. A concrete kind reports its own signature via `.spec()`.
 
 ## Usage
 
