@@ -15,6 +15,10 @@ dependencies = [
     "xarray>=2024.0",
     "zarr>=2.18",
     "sparse>=0.15",
+    # sparse pulls numba transitively; without a floor the resolver backtracks to
+    # numba 0.53 / llvmlite 0.36.0, which ships no py3.11+ wheels and fails to build
+    # from source. A modern numba floor keeps the closure installable on 3.11/3.12.
+    "numba>=0.60",
 ]
 
 [project.optional-dependencies]
