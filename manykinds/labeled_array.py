@@ -13,27 +13,33 @@ from dataclasses import dataclass
 import numpy as np
 import xarray as xr
 
+from manykinds._persistence import (
+    NAMESPACE, format_metadata, validate_metadata, validate_provenance,
+)
 from manykinds.spec import KindSpec
 
 logger = logging.getLogger(__name__)
 
 
-def _json_safe(attrs: dict) -> dict:
-    """Coerce numpy scalars / bytes in attrs to JSON-serializable values.
+def _json_safe(value):
+    """Recursively coerce numpy scalars, arrays and UTF-8 bytes for JSON attrs."""
+    if isinstance(value, np.generic):
+        value = value.item()
+    if isinstance(value, bytes):
+        return value.decode("utf-8")
+    if isinstance(value, dict):
+        return {str(k): _json_safe(v) for k, v in value.items()}
+    if isinstance(value, np.ndarray):
+        return _json_safe(value.tolist())
+    if isinstance(value, (list, tuple)):
+        return [_json_safe(v) for v in value]
+    return value
 
-    The sparse path stashes ``da.attrs`` as a nested dict inside zarr attrs, which
-    xarray does NOT recursively coerce — so a numpy int/bool/bytes value (e.g. a
-    ``genome`` tag read from an ``.h5``) would crash zarr's JSON encoder. Mirror
-    what xarray does for top-level attrs.
-    """
-    out = {}
-    for k, v in attrs.items():
-        if isinstance(v, np.generic):
-            v = v.item()
-        elif isinstance(v, bytes):
-            v = v.decode()
-        out[str(k)] = v
-    return out
+
+def _domain_attrs(attrs: dict) -> dict:
+    if NAMESPACE in attrs:
+        raise ValueError(f"{NAMESPACE!r} is reserved for storage metadata")
+    return _json_safe(attrs)
 
 
 @dataclass(frozen=True, eq=False)
@@ -93,71 +99,68 @@ class LabeledArray:
         import sparse
 
         da = self.da
-        # Dense arrays serialize natively; only sparse needs the COO-component
-        # format below (zarr can't serialize a sparse-backed DataArray directly).
-        if not isinstance(da.data, sparse.COO):
-            # provenance rides in attrs (only when non-empty) so the op trail
-            # survives the round-trip, reusing xarray's attrs-preservation.
-            if self.provenance:
-                da = da.assign_attrs(provenance=list(self.provenance))
-            da.to_zarr(path, mode="w")
-            return
-
-        coo = da.data
-        ds = xr.Dataset(
-            {
+        is_sparse = isinstance(da.data, sparse.COO)
+        metadata = format_metadata("LabeledArray", "coo" if is_sparse else "dense")
+        metadata.update(
+            dims=list(da.dims), name=da.name, attrs=_domain_attrs(da.attrs),
+            provenance=list(validate_provenance(self.provenance)), coords=[],
+        )
+        # Caller names and attrs live in the envelope, outside xarray's storage
+        # conventions. Internal variable names never determine the encoding.
+        storage_dims = {dim: f"dim_{i}" for i, dim in enumerate(da.dims)}
+        if is_sparse:
+            coo = da.data
+            variables = {
                 "coo_coords": (("ndim", "nnz"), coo.coords),
                 "coo_data": (("nnz",), coo.data),
-            },
-            attrs={
-                "shape": list(coo.shape),
-                "dims": list(da.dims),
-                "fill_value": coo.fill_value.item(),
-                "name": da.name or "",
-                "da_attrs": _json_safe(da.attrs),
-                "provenance": list(self.provenance),
-                # in conjunction with the loop below, keeps additional coords
-                # aligned to their dim (e.g. cell + time)
-                "coord_dims": {name: list(c.dims) for name, c in da.coords.items()},
-            },
-        )
+            }
+            metadata.update(shape=list(coo.shape), fill_value=_json_safe(coo.fill_value))
+        else:
+            variables = {"data": (tuple(storage_dims.values()), da.data)}
 
-        for name, c in da.coords.items():
-            ds = ds.assign_coords(
-                {f"coord_{name}": (tuple(f"len_{d}" for d in c.dims), c.values)}
+        for i, (name, coord) in enumerate(da.coords.items()):
+            variable = f"coord_{i}"
+            metadata["coords"].append({
+                "name": name, "dims": list(coord.dims), "variable": variable,
+                "attrs": _domain_attrs(coord.attrs),
+            })
+            variables[variable] = (
+                tuple(storage_dims[d] for d in coord.dims), coord.values,
             )
+        ds = xr.Dataset(variables, attrs={NAMESPACE: metadata})
         ds.to_zarr(path, mode="w")
 
     @classmethod
     def load(cls, path):
         path = cls._normalize(path)
-        ds = xr.open_zarr(path)
-        if "coo_data" not in ds:
-            # Dense: reload as a DataArray to preserve its numpy backing.
-            da = xr.open_dataarray(path, engine="zarr")
-            # pull provenance back out of attrs so it doesn't linger as a domain attr
-            provenance = tuple(da.attrs.pop("provenance", ()))
-            return cls(da, provenance=provenance)  # validate via __post_init__
+        with xr.open_zarr(path) as ds:
+            metadata = validate_metadata(
+                ds.attrs.get(NAMESPACE), "LabeledArray", ("dense", "coo"),
+            )
+            provenance = validate_provenance(metadata.get("provenance"))
+            if metadata["encoding"] == "dense":
+                data = ds["data"].values
+            else:
+                import sparse
 
-        import sparse
-
-        coo = sparse.COO(
-            coords=ds["coo_coords"].values,
-            data=ds["coo_data"].values,
-            shape=tuple(ds.attrs["shape"]),
-            fill_value=ds.attrs["fill_value"],
-        )
-        coord_dims = ds.attrs["coord_dims"]
-        coords = {
-            name: (tuple(coord_dims[name]), ds[f"coord_{name}"].values)
-            for name in coord_dims
-        }
-        da = xr.DataArray(
-            coo, dims=ds.attrs["dims"], coords=coords, name=ds.attrs["name"] or None
-        )
-        da.attrs = dict(ds.attrs.get("da_attrs", {}))
-        provenance = tuple(ds.attrs.get("provenance", ()))
-        return cls(da, provenance=provenance)  # validate called from __post_init__
+                data = sparse.COO(
+                    coords=ds["coo_coords"].values,
+                    data=ds["coo_data"].values,
+                    shape=tuple(metadata["shape"]),
+                    fill_value=metadata["fill_value"],
+                )
+            coords = {
+                coord["name"]: (
+                    tuple(coord["dims"]), ds[coord["variable"]].values,
+                    _domain_attrs(coord["attrs"]),
+                )
+                for coord in metadata["coords"]
+            }
+            da = xr.DataArray(
+                data, dims=metadata["dims"], coords=coords, name=metadata["name"],
+                attrs=_domain_attrs(metadata["attrs"]),
+            )
+        return cls(da, provenance=provenance)  # validate via __post_init__
 
     def __repr__(self) -> str:
         return (

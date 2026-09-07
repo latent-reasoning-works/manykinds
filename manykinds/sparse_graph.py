@@ -10,6 +10,7 @@ from typing import Optional
 
 import numpy as np
 
+from manykinds._persistence import load_npz_metadata, save_npz, validate_ids
 from manykinds.spec import KindSpec
 
 logger = logging.getLogger(__name__)
@@ -94,25 +95,24 @@ class SparseGraph:
 
     def serialize(self, path: str) -> None:
         logger.info(f"Serializing {type(self).__name__} to {path}")
-        # provenance rides alongside as a string array so the op trail survives
-        # the round-trip; stored explicitly since .npz keys are arrays, not attrs.
         arrays = dict(
             edges=self.edges,
             node_ids=self.node_ids,
-            provenance=np.asarray(self.provenance, dtype=object),
         )
         if self.edge_weights is not None:
             arrays["edge_weights"] = self.edge_weights
-        np.savez_compressed(self._normalize(path), **arrays)
+        validate_ids(self.node_ids, "node_ids")
+        save_npz(self._normalize(path), "SparseGraph", arrays, self.provenance)
 
     @classmethod
     def load(cls, path):
-        with np.load(cls._normalize(path), allow_pickle=True) as d:
-            # older archives predate provenance/weights; default cleanly.
-            provenance = tuple(d["provenance"]) if "provenance" in d else ()
+        with np.load(cls._normalize(path), allow_pickle=False) as d:
+            provenance = load_npz_metadata(d, "SparseGraph")
             edge_weights = d["edge_weights"] if "edge_weights" in d else None
+            node_ids = d["node_ids"]
+            validate_ids(node_ids, "node_ids")
             # validate called from __post_init__
-            return cls(d["edges"], d["node_ids"], provenance, edge_weights)
+            return cls(d["edges"], node_ids, provenance, edge_weights)
 
     @property
     def data(self) -> tuple[np.ndarray, np.ndarray]:
