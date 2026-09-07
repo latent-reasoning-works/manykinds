@@ -55,6 +55,40 @@ la = la.tagged("pca")                      # append to the immutable provenance 
 la.serialize("embedding.zarr")             # dense or sparse; validates on load
 ```
 
+## Persistence format
+
+`LabeledArray` Zarr stores and `SparseGraph` / `Sequence` NPZ archives use
+manykinds format version 1. A reserved `_manykinds` envelope identifies the
+format, version, kind, and encoding (`dense`, `coo`, or `npz`). Readers validate
+that identity before interpreting components; caller array names do not select
+an encoding.
+
+Zarr keeps the op trail separate from the array's domain attrs and each
+coordinate's attrs, dims, and name. Caller attrs such as `provenance`, `kind`,
+and `version` round-trip independently. The top-level `_manykinds` attr is
+reserved on arrays and coordinates: serialization rejects a collision before
+writing. Other attrs are nested inside the envelope, so xarray's own storage
+attrs cannot consume them. Numpy scalars and arrays are recursively converted
+to JSON values; bytes (including `np.bytes_`) decode as UTF-8, and tuples become
+JSON lists. Internal component names are independent of caller names.
+
+NPZ stores its envelope as a Unicode JSON scalar and its op trail as a 1-D
+Unicode array, including an empty trail. Both loaders use `allow_pickle=False`,
+with no pickle fallback. Graph node IDs and optional sequence IDs must be 1-D
+arrays with boolean, integer, floating, complex, fixed-width byte-string, or
+Unicode dtypes (`b`, `i`, `u`, `f`, `c`, `S`, `U`); dtype is preserved. Object,
+structured, datetime, and other ID encodings are rejected on write and read.
+Convert object string IDs explicitly to a fixed-width string dtype before
+serializing. No NPZ component may require object/pickle storage.
+
+**Compatibility decision:** unversioned Zarr and NPZ archives are rejected,
+even if their contents would otherwise be safe. Unknown versions, kinds, and
+encodings are also rejected. Existing archives must be regenerated from trusted
+source data with this writer; there is no automatic migration or pickle
+fallback. Domain attrs already overwritten by an old writer cannot be recovered.
+Old package readers do not support this versioned format; upgrade readers and
+writers together. Table and FileArtifact persistence are unchanged.
+
 ## Who depends on it
 
 - **Producers** (dataset adapters like `manylatents-omics`, model wrappers, tool

@@ -10,6 +10,7 @@ from typing import Optional
 
 import numpy as np
 
+from manykinds._persistence import load_npz_metadata, save_npz, validate_ids
 from manykinds.spec import KindSpec
 
 logger = logging.getLogger(__name__)
@@ -84,17 +85,19 @@ class Sequence:
         arrays = dict(
             sequences=self.sequences,
             alphabet=np.asarray(self.alphabet),
-            provenance=np.asarray(self.provenance, dtype=object),
         )
         if self.ids is not None:
+            validate_ids(self.ids, "ids")
             arrays["ids"] = self.ids
-        np.savez_compressed(self._normalize(path), **arrays)
+        save_npz(self._normalize(path), "Sequence", arrays, self.provenance)
 
     @classmethod
     def load(cls, path):
-        with np.load(cls._normalize(path), allow_pickle=True) as d:
+        with np.load(cls._normalize(path), allow_pickle=False) as d:
+            provenance = load_npz_metadata(d, "Sequence")
             ids = d["ids"] if "ids" in d else None
-            provenance = tuple(d["provenance"]) if "provenance" in d else ()
+            if ids is not None:
+                validate_ids(ids, "ids")
             return cls(d["sequences"], str(d["alphabet"]), ids, provenance)
 
     def __repr__(self) -> str:
