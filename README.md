@@ -101,4 +101,6 @@ the tools that speak it.
 
 ## License
 
-MIT
+Apache-2.0; see [LICENSE](LICENSE). [NOTICE](NOTICE) keeps the MIT notice of releases up to 0.1.1.
+
+Unless you state otherwise, any contribution you intentionally submit for inclusion in manykinds is licensed under the Apache License, Version 2.0, as section 5 of the license describes, without any additional terms or conditions. That includes the license's patent grant (section 3).
