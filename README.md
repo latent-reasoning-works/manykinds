@@ -12,6 +12,25 @@ It's the same pattern as `anndata` in single-cell or the Array API standard for
 array libraries: one light package everyone agrees on, rather than each tool
 inventing (or embedding) its own data contract.
 
+## Install
+
+The checks (`Kind`, `KindSpec`, `manykinds.params`) need only the standard library:
+
+```sh
+uv add manykinds
+```
+
+The array kinds (`LabeledArray`, `SparseGraph`, `FileArtifact`, `Table`, `Sequence`)
+need the array packages:
+
+```sh
+uv add "manykinds[arrays]"
+```
+
+A dependent that already has a kind's packages can use that kind without the extra.
+`SparseGraph` and `Sequence` need only numpy. If a kind's packages are missing, the
+first access to it raises `ImportError` that names the kind and the extra.
+
 ## What's in it
 
 - **`Kind`** — a `@runtime_checkable` structural protocol (`provenance`,
@@ -27,7 +46,7 @@ inventing (or embedding) its own data contract.
   format + checksum). The escape hatch for outputs the vocabulary doesn't model
   structurally: carry the file through a pipeline unchanged.
 - **`Table`** — heterogeneous columnar data (a pandas DataFrame) for mixed-dtype
-  tables like AnnData `obs`/`var`. Parquet persistence (`manykinds[table]` extra).
+  tables like AnnData `obs`/`var`. Parquet persistence (`manykinds[table]` extra, which includes `arrays`).
 - **`Sequence`** — biological sequences over an alphabet (DNA/protein), with
   optional ids. `.npz`.
 - **`KindSpec`** — a data-free structural signature (kind name + dims + coords).
