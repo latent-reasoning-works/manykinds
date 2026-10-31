@@ -64,7 +64,7 @@ class Table:
             import pyarrow.parquet as pq
         except ImportError as e:
             raise ImportError(
-                "Table persistence needs parquet: pip install 'manykinds[table]'"
+                'Table persistence needs parquet: uv add "manykinds[table]"'
             ) from e
         table = pa.Table.from_pandas(self.df)
         meta = dict(table.schema.metadata or {})
@@ -79,7 +79,7 @@ class Table:
             import pyarrow.parquet as pq
         except ImportError as e:
             raise ImportError(
-                "Table persistence needs parquet: pip install 'manykinds[table]'"
+                'Table persistence needs parquet: uv add "manykinds[table]"'
             ) from e
         table = pq.read_table(cls._normalize(path))
         raw = (table.schema.metadata or {}).get(b"manykinds_provenance")

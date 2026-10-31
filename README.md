@@ -55,6 +55,21 @@ la = la.tagged("pca")                      # append to the immutable provenance 
 la.serialize("embedding.zarr")             # dense or sparse; validates on load
 ```
 
+## Parameter declarations
+
+`manykinds.params` defines how a method or a tool declares its parameters: a plain-data JSON or
+YAML document (version 1) that says which values each parameter accepts, which ones a caller
+may set, and how each one is limited by the data. `check_declaration(doc)` checks a document
+from any producer, and `check(declaration, values, n_samples=..., n_features=...)` checks
+submitted values. The module imports only the standard library, so a tool author checks a
+manifest without the array stack:
+
+```sh
+python -m manykinds.params check my_tool.json
+```
+
+The format is defined in [docs/param-declarations.md](docs/param-declarations.md).
+
 ## Persistence format
 
 `LabeledArray` Zarr stores and `SparseGraph` / `Sequence` NPZ archives use

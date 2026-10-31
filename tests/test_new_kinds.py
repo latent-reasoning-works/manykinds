@@ -1,4 +1,6 @@
 """FileArtifact, Table, Sequence, and weighted SparseGraph."""
+import sys
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -110,6 +112,18 @@ def test_table_parquet_round_trip_preserves_dtypes(tmp_path):
     assert r.provenance == ("cluster_summary",)
     assert list(r.df.columns) == ["cluster", "label", "score"]
     assert r.df["score"].dtype == np.float64 and r.df["cluster"].dtype == np.int64
+
+
+@pytest.mark.parametrize("op", ["serialize", "load"])
+def test_table_without_parquet_names_the_uv_install(tmp_path, monkeypatch, op):
+    monkeypatch.setitem(sys.modules, "pyarrow", None)
+    monkeypatch.setitem(sys.modules, "pyarrow.parquet", None)
+    p = str(tmp_path / "t.parquet")
+    with pytest.raises(ImportError, match=r'uv add "manykinds\[table\]"'):
+        if op == "serialize":
+            Table(_toy_df()).serialize(p)
+        else:
+            Table.load(p)
 
 
 # --------------------------------------------------------------------------- #
