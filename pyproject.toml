@@ -10,7 +10,12 @@ authors = [
     { name = "Zack Warren" },
 ]
 keywords = ["typed-data", "protocol", "xarray", "single-cell", "kinds"]
-dependencies = [
+dependencies = []
+
+[project.optional-dependencies]
+# The array kinds (LabeledArray, SparseGraph, FileArtifact, Table, Sequence).
+# Kind, KindSpec and manykinds.params need none of these.
+arrays = [
     "numpy>=1.23",
     "xarray>=2024.0",
     "zarr>=2.18",
@@ -20,11 +25,25 @@ dependencies = [
     # from source. A modern numba floor keeps the closure installable on 3.11/3.12.
     "numba>=0.60",
 ]
-
-[project.optional-dependencies]
-# Table persistence (parquet) needs a pandas parquet engine.
-table = ["pyarrow>=14"]
-dev = ["pytest>=7.0", "scipy>=1.10", "pyarrow>=14"]
+# Table persistence (parquet) needs a pandas parquet engine, plus the array kinds.
+table = [
+    "pyarrow>=14",
+    "numpy>=1.23",
+    "xarray>=2024.0",
+    "zarr>=2.18",
+    "sparse>=0.15",
+    "numba>=0.60",
+]
+dev = [
+    "pytest>=7.0",
+    "scipy>=1.10",
+    "pyarrow>=14",
+    "numpy>=1.23",
+    "xarray>=2024.0",
+    "zarr>=2.18",
+    "sparse>=0.15",
+    "numba>=0.60",
+]
 
 [project.urls]
 Homepage = "https://github.com/latent-reasoning-works/manykinds"

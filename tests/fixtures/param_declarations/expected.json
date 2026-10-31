@@ -1,0 +1,11 @@
+{
+  "bad_cost": "params.knn.cost.direction: unknown key 'direction'",
+  "bad_role": "params.knn.role: 'tunable' is not one of knob, fixed, infra",
+  "bad_type": "params.knn.legal.type: 'integer' is not one of int, float, bool, choice, str",
+  "default_refused": "params.knn.default: 0 is refused by legal",
+  "empty_meaning": "params.knn.meaning: must be 1 to 120 characters",
+  "limit_fact": "params.knn.limits[0].fact: 'n_genes' is not one of n_samples, n_features",
+  "missing_key": "params.knn.role: missing key 'role'",
+  "sensible_log_lo": "params.knn.sensible: scale log needs lo > 0",
+  "unknown_key": "params.knn.step: unknown key 'step'"
+}
